@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <filesystem>
+#include <span>
 #include <type_traits>
 
 #define MMSER
