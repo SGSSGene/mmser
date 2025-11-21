@@ -261,7 +261,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
 
 
     {
-        auto filename = std::filesystem::path{"/tmp/unit_test_mmser_load"};
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_load"};
         mmser::saveFile(filename, input);
         auto [output, storageManager] = mmser::loadFile<mmser::vector<int16_t>>(filename);
 
@@ -272,7 +272,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
     }
 
     {
-        auto filename = std::filesystem::path{"/tmp/unit_test_mmser_load_copy"};
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_load_copy"};
         mmser::saveFile(filename, input);
         auto [output, storageManager] = mmser::loadFileCopy<mmser::vector<int16_t>>(filename);
 
@@ -283,7 +283,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
     }
 #ifdef MMSER_MMAP
     {
-        auto filename = std::filesystem::path{"/tmp/unit_test_mmser_load_mmap"};
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_load_mmap"};
         mmser::saveFile(filename, input);
         auto [output, storageManager] = mmser::loadFileMMap<mmser::vector<int16_t>>(filename);
 
@@ -295,7 +295,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
 #endif
 
     {
-        auto filename = std::filesystem::path{"/tmp/unit_test_mmser_save"};
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_save"};
         mmser::saveFile(filename, input);
         auto [output, storageManager] = mmser::loadFile<mmser::vector<int16_t>>(filename);
 
@@ -306,7 +306,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
     }
 
     {
-        auto filename = std::filesystem::path{"/tmp/unit_test_mmser_save_copy"};
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_save_copy"};
         mmser::saveFileCopy(filename, input);
         auto [output, storageManager] = mmser::loadFile<mmser::vector<int16_t>>(filename);
 
@@ -318,7 +318,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
 
 #ifdef MMSER_MMAP
     {
-        auto filename = std::filesystem::path{"/tmp/unit_test_mmser_save_mmap"};
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_save_mmap"};
         mmser::saveFileMMap(filename, input);
         auto [output, storageManager] = mmser::loadFile<mmser::vector<int16_t>>(filename);
 
