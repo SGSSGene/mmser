@@ -2,190 +2,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
-#include <cassert>
-#include <filesystem>
-#include <span>
-#include <type_traits>
+#include "Archive.h"
+#include "Handler.h"
 
-#define MMSER
+#include <any>
+#include <fstream>
+#include <iostream>
+
+#if (defined(unix) || defined(__unix__) || defined(__unix))
+    #include <fcntl.h>
+    #include <sys/mman.h>
+    #include <sys/stat.h>
+    #include <tuple>
+    #include <unistd.h>
+    #define MMSER_MMAP
+#endif
+
 
 namespace mmser {
-enum class Mode { Load, LoadMMap, Save, SaveSize };
-
-template <Mode _mode>
-struct Archive {
-    static constexpr Mode mode = _mode;
-};
-
-auto requiredPaddingBytes(size_t totalSize, size_t alignment) -> size_t {
+inline auto requiredPaddingBytes(size_t totalSize, size_t alignment) -> size_t {
     size_t usedBytesOfNextElement = totalSize % alignment;
     if (usedBytesOfNextElement == 0) return 0;
     return alignment - usedBytesOfNextElement;
 }
 
-template <typename Ar, typename T>
-void handle(Ar& ar, T& t);
-
-template <Mode _mode>
-struct ArchiveBase {
-    static constexpr Mode mode = _mode;
-    static constexpr bool loading() { return mode == Mode::Load; }
-    static constexpr bool loadingMMap() { return mode == Mode::LoadMMap; }
-    static constexpr bool saving() { return mode == Mode::Save; }
-
-    template <typename Self, typename T>
-    void operator&(this Self&& self, T&& t) {
-        handle(std::forward<Self>(self), std::forward<T>(t));
-    }
-    template <typename Self, typename ...Args>
-    void operator()(this Self&& self, Args&&... args) {
-        (handle(std::forward<Self>(self), std::forward<Args>(args)), ...);
-    }
-};
-
-template <>
-struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
-    std::span<char const> buffer;
-    size_t totalSize{};
-
-    Archive(std::span<char const> _buffer) : buffer{_buffer} {}
-
-    void load(std::span<char> _in, size_t alignment = 1) {
-        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        assert(paddingBytes <= buffer.size());
-        buffer = buffer.subspan(paddingBytes);
-
-        assert (_in.size() <= buffer.size());
-        for (size_t i{}; i < _in.size(); ++i) {
-            _in[i] = buffer[i];
-        }
-        buffer = buffer.subspan(_in.size());
-        totalSize = _in.size() + paddingBytes;
-    }
-
-    auto loadMMap(size_t alignment = 1) -> std::span<char const> {
-        size_t size{};
-        *this & size;
-
-        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        assert(paddingBytes <= buffer.size());
-        buffer = buffer.subspan(paddingBytes);
-
-        assert(size <= buffer.size());
-        auto r = buffer.subspan(0, size);
-        buffer = buffer.subspan(size);
-        totalSize = size + paddingBytes;
-        return r;
-    }
-};
-
-template <>
-struct Archive<Mode::LoadMMap> : ArchiveBase<Mode::LoadMMap> {
-    std::span<char const> buffer;
-    size_t totalSize{};
-
-    Archive(std::span<char const> _buffer) : buffer{_buffer} {}
-
-    void load(std::span<char> _in, size_t alignment = 1) {
-        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        assert(paddingBytes <= buffer.size());
-        buffer = buffer.subspan(paddingBytes);
-
-        assert (_in.size() <= buffer.size());
-        for (size_t i{}; i < _in.size(); ++i) {
-            _in[i] = buffer[i];
-        }
-        buffer = buffer.subspan(_in.size());
-        totalSize = _in.size() + paddingBytes;
-    }
-
-    auto loadMMap(size_t alignment = 1) -> std::span<char const> {
-        size_t size{};
-        *this & size;
-
-        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        assert(paddingBytes <= buffer.size());
-        buffer = buffer.subspan(paddingBytes);
-
-        assert(size <= buffer.size());
-        auto r = buffer.subspan(0, size);
-        buffer = buffer.subspan(size);
-        totalSize = size + paddingBytes;
-        return r;
-    }
-
-
-};
-
-template <>
-struct Archive<Mode::Save> : ArchiveBase<Mode::Save> {
-    std::span<char> buffer;
-    size_t totalSize{};
-
-    Archive(std::span<char> _buffer) : buffer{_buffer} {}
-
-    void save(std::span<char const> _out, size_t alignment = 1) {
-        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        assert(paddingBytes <= buffer.size());
-        buffer = buffer.subspan(paddingBytes);
-
-        assert (_out.size() <= buffer.size());
-        for (size_t i{}; i < _out.size(); ++i) {
-            buffer[i] = _out[i];
-        }
-        buffer = buffer.subspan(_out.size());
-        totalSize = _out.size() + paddingBytes;
-    }
-    void saveMMap(std::span<char const> _out, size_t alignment = 1) {
-        auto size = _out.size();
-        *this & size;
-        save(_out, alignment);
-    }
-};
-
-template <>
-struct Archive<Mode::SaveSize> : ArchiveBase<Mode::SaveSize> {
-    size_t totalSize{}; // accumulated size of all elements
-    void storeSize(size_t size, size_t alignment = 1) {
-        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        totalSize += size + paddingBytes;
-    }
-    void storeSizeMMap(std::span<char const> _out, size_t alignment = 1) {
-        auto size = _out.size();
-        *this & size;
-        storeSize(_out.size(), alignment);
-    }
-};
-
-
-template <typename T>
-struct Handler;
-
-template <typename Ar, typename T>
-void handle(Ar& ar, T& t) {
-    static_assert(
-        !std::is_pointer_v<T>,
-        "Pointers can not be serialized"
-    );
-
-    static constexpr bool hasSerialize = requires() {
-        { t.serialize(ar) };
-    };
-    static constexpr bool hasHandler = requires() {
-        { Handler<T>{t} };
-    };
-
-    if constexpr (hasSerialize) {
-        t.serialize(ar);
-    } else if constexpr (hasHandler) {
-        auto h = Handler<T>{t};
-        h.serialize(ar);
-    } else {
-        []<bool f = false> {
-            static_assert(f, "has no valid serialize() overload nor a registered mmser::Handler");
-        }();
-    }
-}
 
 template <typename T>
 void load(std::span<char const> buffer, T& t) {
@@ -212,24 +52,108 @@ size_t computeSaveSize(T const& t) {
     return archive.totalSize;
 }
 
-template <typename T>
-    requires (
-        std::is_trivially_copyable_v<std::remove_const_t<T>>
-        && !std::is_class_v<std::remove_const_t<T>>
-    )
-struct Handler<T> {
-    T& t;
+using Storage = std::unique_ptr<std::any>;
 
-    void serialize(auto& ar) {
-        if constexpr (ar.loading() || ar.loadingMMap()) {
-            auto in = std::span<char>{reinterpret_cast<char*>(&t), sizeof(t)};
-            ar.load(in, alignof(T));
-        } else if constexpr (ar.saving()) {
-            auto out = std::span<char const>{reinterpret_cast<char const*>(&t), sizeof(t)};
-            ar.save(out, alignof(T));
-        } else {
-            ar.storeSize(sizeof(t), alignof(T));
+template <typename T>
+auto loadFileCopy(std::filesystem::path const& path) -> std::tuple<T, Storage> {
+    auto ret = std::tuple<T, Storage>{};
+
+    auto buffer = std::vector<char>{};
+    {
+        auto file = std::ifstream{path, std::ios::in | std::ios::binary | std::ios::ate};
+        buffer.resize(file.tellg());
+        file.seekg(0, std::ios::beg);
+        file.read(buffer.data(), buffer.size());
+    }
+    load(buffer, std::get<0>(ret));
+    return ret;
+}
+
+#ifdef MMSER_MMAP
+template <typename T>
+auto loadFileMMap(std::filesystem::path const& path) -> std::tuple<T, Storage> {
+    auto ret = std::tuple<T, Storage>{};
+
+    auto file_fd = ::open(path.c_str(), O_RDONLY);
+    if (file_fd == -1) {
+        throw std::runtime_error{"file " + path.string() + " not readable"};
+    }
+    auto file_size = static_cast<size_t>(std::filesystem::file_size(path));
+    auto ptr = (char const*)mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, file_fd, 0);
+    if (ptr == MAP_FAILED) {
+        throw std::runtime_error{"mmap failed"};
+    }
+    auto buffer = std::span<char const>{ptr, file_size};
+    load(buffer, std::get<0>(ret));
+    return ret;
+}
+#endif
+
+
+template <typename T>
+auto loadFile(std::filesystem::path const& path) -> std::tuple<T, Storage> {
+    #ifdef MMSER_MMAP
+        return loadFileMMap<T>(path);
+    #else
+        return loadFileCopy<T>(path);
+    #endif
+}
+
+template <typename T>
+void saveFileCopy(std::filesystem::path const& path, T const& t) {
+    auto size = computeSaveSize(t);
+
+    auto buffer = std::vector<char>{};
+    buffer.resize(size);
+    save(buffer, t);
+    {
+        auto file = std::ofstream{path, std::ios::out | std::ios::binary | std::ios::trunc};
+        file.write(buffer.data(), buffer.size());
+    }
+}
+
+#ifdef MMSER_MMAP
+template <typename T>
+void saveFileMMap(std::filesystem::path const& path, T const& t) {
+    auto size = computeSaveSize(t);
+
+    auto file_fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0666);
+    if (file_fd == -1) {
+        throw std::runtime_error{"file " + path.string() + " not writable"};
+    }
+
+    if (size > 0) {
+        if (auto r = lseek(file_fd, size-1, SEEK_SET); r == -1) {
+            close(file_fd);
+            throw std::runtime_error{"file " + path.string() + " not writable, ::lseek error"};
+        }
+        if (auto r = write(file_fd, "", 1); r != 1) {
+            close(file_fd);
+            throw std::runtime_error{"file " + path.string() + " not writable, ::write error"};
+        }
+        auto ptr = (char*)mmap(nullptr, size, PROT_WRITE, MAP_SHARED, file_fd, 0);
+        if (ptr == MAP_FAILED) {
+            close(file_fd);
+            throw std::runtime_error{"mmap failed"};
+        }
+        auto buffer = std::span<char>{ptr, size};
+        save(buffer, t);
+        if (auto r = munmap((void*)ptr, size); r != 0) {
+            throw std::runtime_error{std::string{"munmap failed: "} + strerror(errno) + "(" + std::to_string(errno) + ")"};
         }
     }
-};
+    if (auto r = close(file_fd); r != 0) {
+        throw std::runtime_error{"::close failed"};
+    }
+}
+#endif
+
+template <typename T>
+void saveFile(std::filesystem::path const& path, T const& t) {
+    #ifdef MMSER_MMAP
+        saveFileMMap(path, t);
+    #else
+        saveFileCopy(path, t);
+    #endif
+}
 }
