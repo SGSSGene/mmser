@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
-#define MMSER
-
-#include "utils.h"
-#include "vector.h"
+namespace mmser {
+enum class Mode { Load, LoadMMap, Save, SaveSize };
+}
