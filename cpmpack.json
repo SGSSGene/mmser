@@ -1,0 +1,42 @@
+{
+  "format_version": "1",
+  "options": [
+    {
+        "name": "MMSER_BUILD_TEST",
+        "description": "build tests for this library",
+        "default": "${PROJECT_IS_TOP_LEVEL}"
+    },
+  ],
+  "translationsets": [
+    {
+      "name": "mmser::mmser",
+      "type": "library",
+      "language": "cxx_std_23",
+    },
+    {
+        "if": "MMSER_BUILD_TEST",
+        "name": "test_mmser",
+        "type": "executable",
+        "language": "cxx_std_20",
+        "dependencies": [
+            "mmser::mmser",
+            "Catch2::Catch2WithMain",
+        ]
+    },
+  ],
+  "packages": [
+    {
+      "if": "MMSER_BUILD_TEST",
+      "name": "fmt",
+      "version": "12.1.0",
+      "github_repository": "fmtlib/fmt",
+      "git_tag": "{VERSION}",
+    },
+    {
+      "if": "MMSER_BUILD_TEST",
+      "name":"Catch2",
+      "version": "3.11.0",
+      "github_repository": "catchorg/Catch2"
+    },
+  ]
+}
