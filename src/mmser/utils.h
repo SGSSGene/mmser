@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <filesystem>
+#include <span>
 #include <type_traits>
 
 #define MMSER
@@ -222,12 +223,12 @@ struct Handler<T> {
     void serialize(auto& ar) {
         if constexpr (ar.loading() || ar.loadingMMap()) {
             auto in = std::span<char>{reinterpret_cast<char*>(&t), sizeof(t)};
-            ar.load(in, alignof(t));
+            ar.load(in, alignof(T));
         } else if constexpr (ar.saving()) {
             auto out = std::span<char const>{reinterpret_cast<char const*>(&t), sizeof(t)};
-            ar.save(out, alignof(t));
+            ar.save(out, alignof(T));
         } else {
-            ar.storeSize(sizeof(t), alignof(t));
+            ar.storeSize(sizeof(t), alignof(T));
         }
     }
 };
