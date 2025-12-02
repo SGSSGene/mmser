@@ -150,7 +150,6 @@ TEST_CASE("Tests mmser - struct3", "[mmser][struct]") {
         CHECK(buffer[9] == 5);
         CHECK(buffer[10] == 6);
     }
-
 }
 
 TEST_CASE("Tests mmser - vector", "[mmser][vector][char]") {
@@ -251,6 +250,158 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t]") {
         CHECK(buffer[13] == 0);
     }
 }
+
+TEST_CASE("Tests mmser", "[mmser][std::array]") {
+    std::array<uint16_t, 3> v{1, 5, 6};
+
+    auto s = mmser::computeSaveSize(v);
+    CHECK(s == 6);
+    { // check load
+        auto buffer = std::array<char, 6>{1, 0, 5, 0, 6, 0};
+        std::array<uint16_t, 3> v;
+        mmser::load(buffer, v);
+        CHECK(v[0] == 1);
+        CHECK(v[1] == 5);
+        CHECK(v[2] == 6);
+    }
+    { // check load via mmap
+        auto buffer = std::array<char, 6>{1, 0, 5, 0, 6, 0};
+        std::array<uint16_t, 3> v;
+        mmser::loadMMap(buffer, v);
+        CHECK(v[0] == 1);
+        CHECK(v[1] == 5);
+        CHECK(v[2] == 6);
+    }
+
+    { // check save
+        auto buffer = std::array<char, 6>{};
+        mmser::save(buffer, v);
+        CHECK(buffer[0] == 1);
+        CHECK(buffer[1] == 0);
+        CHECK(buffer[2] == 5);
+        CHECK(buffer[3] == 0);
+        CHECK(buffer[4] == 6);
+        CHECK(buffer[5] == 0);
+    }
+}
+
+TEST_CASE("Tests mmser", "[mmser][std::vector]") {
+    std::vector<uint16_t> v{1, 5, 6};
+
+    auto s = mmser::computeSaveSize(v);
+    CHECK(s == 14);
+    { // check load
+        auto buffer = std::array<char, 14>{3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 5, 0, 6, 0};
+        std::vector<uint16_t> v;
+        mmser::load(buffer, v);
+        CHECK(v[0] == 1);
+        CHECK(v[1] == 5);
+        CHECK(v[2] == 6);
+    }
+    { // check load via mmap
+        auto buffer = std::array<char, 14>{3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 5, 0, 6, 0};
+        std::vector<uint16_t> v;
+        mmser::loadMMap(buffer, v);
+        CHECK(v[0] == 1);
+        CHECK(v[1] == 5);
+        CHECK(v[2] == 6);
+    }
+
+    { // check save
+        auto buffer = std::array<char, 14>{};
+        mmser::save(buffer, v);
+        CHECK(buffer[ 0] == 3);
+        CHECK(buffer[ 1] == 0);
+        CHECK(buffer[ 2] == 0);
+        CHECK(buffer[ 3] == 0);
+        CHECK(buffer[ 4] == 0);
+        CHECK(buffer[ 5] == 0);
+        CHECK(buffer[ 6] == 0);
+        CHECK(buffer[ 7] == 0);
+        CHECK(buffer[ 8] == 1);
+        CHECK(buffer[ 9] == 0);
+        CHECK(buffer[10] == 5);
+        CHECK(buffer[11] == 0);
+        CHECK(buffer[12] == 6);
+        CHECK(buffer[13] == 0);
+    }
+}
+
+TEST_CASE("Tests mmser", "[mmser][std::string]") {
+    std::string v{"hello world!"};
+
+    auto s = mmser::computeSaveSize(v);
+    CHECK(s == 20);
+    { // check load
+        auto buffer = std::array<char, 20>{12, 0, 0, 0, 0, 0, 0, 0, 'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'};
+        std::string v;
+        mmser::load(buffer, v);
+        CHECK(v == "hello world!");
+    }
+    { // check load via mmap
+        auto buffer = std::array<char, 20>{12, 0, 0, 0, 0, 0, 0, 0, 'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'};
+        std::string v;
+        mmser::loadMMap(buffer, v);
+        CHECK(v == "hello world!");
+    }
+
+    { // check save
+        auto buffer = std::array<char, 20>{};
+        mmser::save(buffer, v);
+        CHECK(buffer[ 0] == 12);
+        CHECK(buffer[ 1] == 0);
+        CHECK(buffer[ 2] == 0);
+        CHECK(buffer[ 3] == 0);
+        CHECK(buffer[ 4] == 0);
+        CHECK(buffer[ 5] == 0);
+        CHECK(buffer[ 6] == 0);
+        CHECK(buffer[ 7] == 0);
+        CHECK(buffer[ 8] == 'h');
+        CHECK(buffer[ 9] == 'e');
+        CHECK(buffer[10] == 'l');
+        CHECK(buffer[11] == 'l');
+        CHECK(buffer[12] == 'o');
+        CHECK(buffer[13] == ' ');
+        CHECK(buffer[14] == 'w');
+        CHECK(buffer[15] == 'o');
+        CHECK(buffer[16] == 'r');
+        CHECK(buffer[17] == 'l');
+        CHECK(buffer[18] == 'd');
+        CHECK(buffer[19] == '!');
+    }
+}
+
+TEST_CASE("Tests mmser", "[mmser][std::tuple]") {
+    std::tuple<uint16_t, uint8_t> v{1, 5};
+
+    auto s = mmser::computeSaveSize(v);
+    CHECK(s == 3);
+    { // check load
+        auto buffer = std::array<char, 4>{1, 0, 5, 0};
+        std::tuple<uint16_t, uint8_t> v;
+        mmser::load(buffer, v);
+        CHECK(std::get<0>(v) == 1);
+        CHECK(std::get<1>(v) == 5);
+    }
+    { // check load via mmap
+        auto buffer = std::array<char, 4>{1, 0, 5, 0};
+        std::tuple<uint16_t, uint8_t> v;
+        mmser::loadMMap(buffer, v);
+        CHECK(std::get<0>(v) == 1);
+        CHECK(std::get<1>(v) == 5);
+    }
+
+    { // check save
+        auto buffer = std::array<char, 4>{};
+        mmser::save(buffer, v);
+        CHECK(buffer[0] == 1);
+        CHECK(buffer[1] == 0);
+        CHECK(buffer[2] == 5);
+        CHECK(buffer[3] == 0);
+    }
+}
+
+
 
 TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
     mmser::vector<int16_t> input;

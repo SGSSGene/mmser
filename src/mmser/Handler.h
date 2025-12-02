@@ -19,19 +19,34 @@ void handle(Ar& ar, T& t) {
     static constexpr bool hasSerialize = requires() {
         { t.serialize(ar) };
     };
+    static constexpr bool hasLoadAndSave = requires(T const& t_const, std::remove_cv_t<T>& t_mut) {
+        { t_mut.load(ar) };
+        { t_const.save(ar) };
+        { t_const.saveSize(ar) };
+    };
     static constexpr bool hasHandler = requires() {
-        { Handler<T>{t} };
+        { Handler<std::remove_cv_t<T>>::serialize(t, ar) };
     };
 
     if constexpr (hasSerialize) {
         t.serialize(ar);
-    } else if constexpr (hasHandler) {
-        auto h = Handler<T>{t};
-        h.serialize(ar);
-    } else {
+    } else if constexpr (hasLoadAndSave) {
+        if constexpr (ar.loading() || ar.loadingMMap()) {
+            t.load(ar);
+        } else if constexpr (ar.saving()) {
+            t.save(ar);
+        } else {
+            t.saveSize(ar);
+//            ar.storeSize(t.saveSize(ar));
+            //!TODO
+//            ar.storeSize(sizeof(t), alignof(T));
+        }
+    } else/* if constexpr (hasHandler)*/ {
+        Handler<std::remove_cv_t<T>>::serialize(t, ar);
+/*    } else {
         []<bool f = false> {
             static_assert(f, "has no valid serialize() overload nor a registered mmser::Handler");
-        }();
+        }();*/
     }
 }
 
@@ -41,9 +56,7 @@ template <typename T>
         && !std::is_class_v<std::remove_const_t<T>>
     )
 struct Handler<T> {
-    T& t;
-
-    void serialize(auto& ar) {
+    static void serialize(auto& t, auto& ar) {
         if constexpr (ar.loading() || ar.loadingMMap()) {
             auto in = std::span<char>{reinterpret_cast<char*>(&t), sizeof(t)};
             ar.load(in, alignof(T));
@@ -55,4 +68,5 @@ struct Handler<T> {
         }
     }
 };
+
 }
