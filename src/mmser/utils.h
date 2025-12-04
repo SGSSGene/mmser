@@ -6,8 +6,11 @@
 #include "Handler.h"
 
 #include <any>
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #if (defined(unix) || defined(__unix__) || defined(__unix))
     #include <fcntl.h>
