@@ -11,12 +11,13 @@ namespace mmser {
 
 template <typename TEntry>
 struct Handler<std::span<TEntry>> {
-    static void serialize(auto& t, auto& ar) {
+    template <typename Ar>
+    static void serialize(auto& t, Ar& ar) {
         if constexpr (is_trivially_copyable<TEntry>) {
-            if constexpr (ar.loading() || ar.loadingMMap()) {
+            if constexpr (Ar::loading() || Ar::loadingMMap()) {
                 auto in = std::span<char>{reinterpret_cast<char*>(t.data()), sizeof(TEntry)*t.size()};
                 ar.load(in, alignof(TEntry));
-            } else if constexpr (ar.saving()) {
+            } else if constexpr (Ar::saving()) {
                 auto out = std::span<char const>{reinterpret_cast<char const*>(t.data()), sizeof(TEntry)*t.size()};
                 ar.save(out, alignof(TEntry));
             } else {

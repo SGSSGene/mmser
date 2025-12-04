@@ -57,9 +57,10 @@ struct vector : std::span<T const> {
         return *this;
     }
 
-    void serialize(this auto&& self, auto& ar) {
-        if constexpr (is_mmser<std::remove_cvref_t<decltype(ar)>>) {
-            if constexpr (ar.loading()) {
+    template <typename Ar>
+    void serialize(this auto&& self, Ar& ar) {
+        if constexpr (is_mmser<std::remove_cvref_t<Ar>>) {
+            if constexpr (Ar::loading()) {
                 auto data = ar.loadMMap();
                 auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
                 self.owningBuffer.resize(data2.size());
@@ -67,12 +68,12 @@ struct vector : std::span<T const> {
                     self.owningBuffer[i] = data2[i];
                 }
                 self.rebuild();
-            } else if constexpr (ar.loadingMMap()) {
+            } else if constexpr (Ar::loadingMMap()) {
                 self.owningBuffer.clear();
                 auto data = ar.loadMMap(alignof(T));
                 auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
                 static_cast<Parent&>(self).operator=(data2);
-            } else if constexpr (ar.saving()) {
+            } else if constexpr (Ar::saving()) {
                 auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
                 ar.saveMMap(data, alignof(T));
             } else {

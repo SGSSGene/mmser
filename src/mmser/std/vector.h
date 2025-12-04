@@ -11,11 +11,12 @@ namespace mmser {
 
 template <typename TEntry>
 struct Handler<std::vector<TEntry>> {
-    static void serialize(auto& t, auto& ar) {
+    template <typename Ar>
+    static void serialize(auto& t, Ar& ar) {
         uint64_t s = t.size();
         ar(s);
 
-        if constexpr (ar.loading() || ar.loadingMMap()) {
+        if constexpr (Ar::loading() || Ar::loadingMMap()) {
             t.resize(s);
         }
 

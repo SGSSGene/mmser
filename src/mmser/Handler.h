@@ -31,15 +31,12 @@ void handle(Ar& ar, T& t) {
     if constexpr (hasSerialize) {
         t.serialize(ar);
     } else if constexpr (hasLoadAndSave) {
-        if constexpr (ar.loading() || ar.loadingMMap()) {
+        if constexpr (Ar::loading() || Ar::loadingMMap()) {
             t.load(ar);
-        } else if constexpr (ar.saving()) {
+        } else if constexpr (Ar::saving()) {
             t.save(ar);
         } else {
             t.saveSize(ar);
-//            ar.storeSize(t.saveSize(ar));
-            //!TODO
-//            ar.storeSize(sizeof(t), alignof(T));
         }
     } else if constexpr (hasHandler) {
         Handler<std::remove_cv_t<T>>::serialize(t, ar);
@@ -56,11 +53,12 @@ template <typename T>
         && !std::is_class_v<std::remove_const_t<T>>
     )
 struct Handler<T> {
-    static void serialize(auto& t, auto& ar) {
-        if constexpr (ar.loading() || ar.loadingMMap()) {
+    template <typename Ar>
+    static void serialize(auto& t, Ar& ar) {
+        if constexpr (Ar::loading() || Ar::loadingMMap()) {
             auto in = std::span<char>{reinterpret_cast<char*>(&t), sizeof(t)};
             ar.load(in, alignof(T));
-        } else if constexpr (ar.saving()) {
+        } else if constexpr (Ar::saving()) {
             auto out = std::span<char const>{reinterpret_cast<char const*>(&t), sizeof(t)};
             ar.save(out, alignof(T));
         } else {
