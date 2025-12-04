@@ -12,25 +12,31 @@ struct vector : std::span<T const> {
     std::vector<T> owningBuffer; // only in use if this struct actually owns the data
 
     void serialize(this auto&& self, auto& ar) {
-        if constexpr (ar.loading()) {
-            auto data = ar.loadMMap();
-            auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
-            self.owningBuffer.resize(data2.size());
-            for (size_t i{0}; i < data2.size(); ++i) {
-                self.owningBuffer[i] = data2[i];
+        if constexpr (is_mmser<std::remove_cvref_t<decltype(ar)>>) {
+            if constexpr (ar.loading()) {
+                auto data = ar.loadMMap();
+                auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
+                self.owningBuffer.resize(data2.size());
+                for (size_t i{0}; i < data2.size(); ++i) {
+                    self.owningBuffer[i] = data2[i];
+                }
+                self.rebuild();
+            } else if constexpr (ar.loadingMMap()) {
+                self.owningBuffer.clear();
+                auto data = ar.loadMMap(alignof(T));
+                auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
+                static_cast<Parent&>(self).operator=(data2);
+            } else if constexpr (ar.saving()) {
+                auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
+                ar.saveMMap(data, alignof(T));
+            } else {
+                auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
+                ar.storeSizeMMap(data, alignof(T));
             }
-            self.rebuild();
-        } else if constexpr (ar.loadingMMap()) {
-            self.owningBuffer.clear();
-            auto data = ar.loadMMap(alignof(T));
-            auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
-            static_cast<Parent&>(self).operator=(data2);
-        } else if constexpr (ar.saving()) {
-            auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
-            ar.saveMMap(data, alignof(T));
         } else {
-            auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
-            ar.storeSizeMMap(data, alignof(T));
+            self.makeOwning();
+            ar(self.owningBuffer);
+            self.rebuild();
         }
     }
     using Parent::size;
@@ -56,6 +62,16 @@ struct vector : std::span<T const> {
         rebuild();
     }
 
+    void reserve(size_t s) {
+        makeOwning();
+        owningBuffer.resize(s);
+        rebuild();
+    }
+
+    auto back() -> auto& {
+        makeOwning();
+        return owningBuffer.back();
+    }
 };
 
 }

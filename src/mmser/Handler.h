@@ -41,12 +41,12 @@ void handle(Ar& ar, T& t) {
             //!TODO
 //            ar.storeSize(sizeof(t), alignof(T));
         }
-    } else/* if constexpr (hasHandler)*/ {
+    } else if constexpr (hasHandler) {
         Handler<std::remove_cv_t<T>>::serialize(t, ar);
-/*    } else {
+    } else {
         []<bool f = false> {
             static_assert(f, "has no valid serialize() overload nor a registered mmser::Handler");
-        }();*/
+        }();
     }
 }
 

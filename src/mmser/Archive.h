@@ -11,10 +11,19 @@
 
 namespace mmser {
 
+template <typename T>
+struct is_mmser_t : std::false_type {};
+
+template <typename T>
+concept is_mmser = is_mmser_t<T>::value;
+
 template <Mode _mode>
 struct Archive {
     static constexpr Mode mode = _mode;
 };
+
+template <Mode _mode>
+struct is_mmser_t<Archive<_mode>> : std::true_type {};
 
 auto requiredPaddingBytes(size_t totalSize, size_t alignment) -> size_t;
 template <typename Ar, typename T>
