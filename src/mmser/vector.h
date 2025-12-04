@@ -4,12 +4,58 @@
 
 #include "utils.h"
 
+#include <initializer_list>
+
 namespace mmser {
 
 template <typename T>
 struct vector : std::span<T const> {
     using Parent = std::span<T const>;
     std::vector<T> owningBuffer; // only in use if this struct actually owns the data
+
+    vector() = default;
+    vector(size_t _size)
+        : owningBuffer(_size)
+    {
+        rebuild();
+    }
+    vector(size_t _size, T const& v)
+        : owningBuffer(_size, v)
+    {
+        rebuild();
+    }
+
+    vector(vector const& _oth)
+        : Parent{}
+    {
+        *this = _oth;
+    }
+    vector(vector&& _oth) {
+        *this = std::move(_oth);
+    }
+
+    vector(std::initializer_list<T> list)
+        : owningBuffer{list}
+    {
+        rebuild();
+    }
+
+    auto operator=(vector const& _oth) -> auto& {
+        owningBuffer.assign(_oth.begin(), _oth.end());
+        rebuild();
+        return *this;
+    }
+    auto operator=(vector&& _oth) -> auto& {
+        if (_oth.size() == 0) return *this;
+        if (_oth.owningBuffer.size() == 0) {
+            owningBuffer = std::move(_oth.owningBuffer);
+            static_cast<Parent&>(*this) = static_cast<Parent&>(_oth);
+            return *this;
+        }
+        owningBuffer = std::move(_oth.owningBuffer);
+        rebuild();
+        return *this;
+    }
 
     void serialize(this auto&& self, auto& ar) {
         if constexpr (is_mmser<std::remove_cvref_t<decltype(ar)>>) {
@@ -40,7 +86,14 @@ struct vector : std::span<T const> {
         }
     }
     using Parent::size;
-    using Parent::operator[];
+
+    auto operator[](size_t idx) const -> auto const& {
+        return Parent::operator[](idx);
+    }
+    auto operator[](size_t idx) -> auto& {
+        makeOwning();
+        return owningBuffer[idx];
+    }
 
     void rebuild() {
         auto data = std::span<T const>{owningBuffer.data(), owningBuffer.size()};
@@ -61,10 +114,28 @@ struct vector : std::span<T const> {
         owningBuffer.push_back(t);
         rebuild();
     }
+    template <typename ...Args>
+    void emplace_back(Args&& ...args) {
+        makeOwning();
+        owningBuffer.emplace_back(std::forward<Args>(args)...);
+        rebuild();
+    }
+
+    void resize(size_t s) {
+        makeOwning();
+        owningBuffer.resize(s);
+        rebuild();
+    }
+
+    void resize(size_t s, T const& v) {
+        makeOwning();
+        owningBuffer.resize(s, v);
+        rebuild();
+    }
 
     void reserve(size_t s) {
         makeOwning();
-        owningBuffer.resize(s);
+        owningBuffer.reserve(s);
         rebuild();
     }
 

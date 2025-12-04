@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../Handler.h"
+#include "../trivially_copyable.h"
 
 #include <span>
 
@@ -11,7 +12,7 @@ namespace mmser {
 template <typename TEntry>
 struct Handler<std::span<TEntry>> {
     static void serialize(auto& t, auto& ar) {
-        if constexpr (std::is_trivially_copyable_v<TEntry>) {
+        if constexpr (is_trivially_copyable<TEntry>) {
             if constexpr (ar.loading() || ar.loadingMMap()) {
                 auto in = std::span<char>{reinterpret_cast<char*>(t.data()), sizeof(TEntry)*t.size()};
                 ar.load(in, alignof(TEntry));
