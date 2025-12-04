@@ -63,7 +63,7 @@ struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
             _in[i] = buffer[i];
         }
         buffer = buffer.subspan(_in.size());
-        totalSize = _in.size() + paddingBytes;
+        totalSize += _in.size() + paddingBytes;
     }
 
     auto loadMMap(size_t alignment = 1) -> std::span<char const> {
@@ -77,7 +77,7 @@ struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
         assert(size <= buffer.size());
         auto r = buffer.subspan(0, size);
         buffer = buffer.subspan(size);
-        totalSize = size + paddingBytes;
+        totalSize += size + paddingBytes;
         return r;
     }
 };
@@ -99,7 +99,7 @@ struct Archive<Mode::LoadMMap> : ArchiveBase<Mode::LoadMMap> {
             _in[i] = buffer[i];
         }
         buffer = buffer.subspan(_in.size());
-        totalSize = _in.size() + paddingBytes;
+        totalSize += _in.size() + paddingBytes;
     }
 
     auto loadMMap(size_t alignment = 1) -> std::span<char const> {
@@ -113,7 +113,7 @@ struct Archive<Mode::LoadMMap> : ArchiveBase<Mode::LoadMMap> {
         assert(size <= buffer.size());
         auto r = buffer.subspan(0, size);
         buffer = buffer.subspan(size);
-        totalSize = size + paddingBytes;
+        totalSize += size + paddingBytes;
         return r;
     }
 
@@ -137,7 +137,7 @@ struct Archive<Mode::Save> : ArchiveBase<Mode::Save> {
             buffer[i] = _out[i];
         }
         buffer = buffer.subspan(_out.size());
-        totalSize = _out.size() + paddingBytes;
+        totalSize += _out.size() + paddingBytes;
     }
     void saveMMap(std::span<char const> _out, size_t alignment = 1) {
         auto size = _out.size();
