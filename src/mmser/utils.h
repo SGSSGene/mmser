@@ -72,6 +72,52 @@ auto loadFileCopy(std::filesystem::path const& path) -> std::tuple<T, Storage> {
     return ret;
 }
 
+struct ArchiveLoadStream : ArchiveBase<Mode::Load> {
+    std::ifstream ifs;
+    size_t totalSize{};
+
+    std::vector<char> buffer;
+
+    ArchiveLoadStream(std::filesystem::path _path)
+        : ifs{_path, std::ios::in | std::ios::binary}
+    {}
+
+    void load(std::span<char> _in, size_t alignment = 1) {
+        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
+
+        ifs.ignore(paddingBytes);
+
+        ifs.read(_in.data(), _in.size());
+        totalSize += _in.size() + paddingBytes;
+    }
+
+    auto loadMMap(size_t alignment = 1) -> std::span<char const> {
+        size_t size{};
+        *this & size;
+
+        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
+        ifs.ignore(paddingBytes);
+        buffer.resize(size+alignment-1);
+        size_t offset = reinterpret_cast<size_t>(buffer.data()) % alignment;
+        ifs.read(buffer.data() + offset, size);
+        totalSize += paddingBytes + size;
+        return {buffer.data() + offset, size};
+    }
+};
+
+template <>
+struct is_mmser_t<ArchiveLoadStream> : std::true_type {};
+
+template <typename T>
+auto loadFileStream(std::filesystem::path const& path) -> std::tuple<T, Storage> {
+    auto ret = std::tuple<T, Storage>{};
+
+    auto archive = ArchiveLoadStream{path};
+    handle(archive, std::get<0>(ret));
+    return ret;
+}
+
+
 #ifdef MMSER_MMAP
 template <typename T>
 auto loadFileMMap(std::filesystem::path const& path) -> std::tuple<T, Storage> {
