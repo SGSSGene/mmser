@@ -65,6 +65,8 @@ struct MyStruct_02 {
     int64_t x{};
 
     void serialize(this auto&& self, auto& ar) {
+        (void)self;
+        (void)ar;
 //        ar & self.x;
     }
 };
