@@ -59,7 +59,7 @@ struct vector {
     void serialize(this auto&& self, Ar& ar) {
         if constexpr (is_mmser<std::remove_cvref_t<Ar>>) {
             if constexpr (Ar::loading()) {
-                auto data = ar.loadMMap();
+                auto data = ar.loadMMap(alignof(T));
                 auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
                 self.owningBuffer.resize(data2.size());
                 for (size_t i{0}; i < data2.size(); ++i) {
