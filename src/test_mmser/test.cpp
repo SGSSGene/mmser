@@ -167,7 +167,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][char]") {
         mmser::load(buffer, v);
         CHECK(v.owningBuffer.size() == 3);
         CHECK(v.size() == 3);
-        CHECK(v.data() == v.owningBuffer.data());
+        CHECK(v.view.data() == v.owningBuffer.data());
         CHECK(v[0] == 1);
         CHECK(v[1] == 5);
         CHECK(v[2] == 6);
@@ -215,7 +215,7 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t]") {
         mmser::load(buffer, v);
         CHECK(v.owningBuffer.size() == 3);
         CHECK(v.size() == 3);
-        CHECK(v.data() == v.owningBuffer.data());
+        CHECK(v.view.data() == v.owningBuffer.data());
         CHECK(v[0] == 1);
         CHECK(v[1] == 5);
         CHECK(v[2] == 6);

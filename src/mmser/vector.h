@@ -9,8 +9,8 @@
 namespace mmser {
 
 template <typename T>
-struct vector : std::span<T const> {
-    using Parent = std::span<T const>;
+struct vector {
+    std::span<T const> view;     // view on the data, either on a mmap or on owningBuffer
     std::vector<T> owningBuffer; // only in use if this struct actually owns the data
 
     vector() = default;
@@ -25,9 +25,7 @@ struct vector : std::span<T const> {
         rebuild();
     }
 
-    vector(vector const& _oth)
-        : Parent{}
-    {
+    vector(vector const& _oth) {
         *this = _oth;
     }
     vector(vector&& _oth) {
@@ -41,7 +39,7 @@ struct vector : std::span<T const> {
     }
 
     auto operator=(vector const& _oth) -> auto& {
-        owningBuffer.assign(_oth.begin(), _oth.end());
+        owningBuffer.assign(_oth.view.begin(), _oth.view.end());
         rebuild();
         return *this;
     }
@@ -49,7 +47,7 @@ struct vector : std::span<T const> {
         if (_oth.size() == 0) return *this;
         if (_oth.owningBuffer.size() == 0) {
             owningBuffer = std::move(_oth.owningBuffer);
-            static_cast<Parent&>(*this) = static_cast<Parent&>(_oth);
+            view = _oth.view;
             return *this;
         }
         owningBuffer = std::move(_oth.owningBuffer);
@@ -72,12 +70,12 @@ struct vector : std::span<T const> {
                 self.owningBuffer.clear();
                 auto data = ar.loadMMap(alignof(T));
                 auto data2 = std::span{reinterpret_cast<T const*>(data.data()), data.size()/sizeof(T)};
-                static_cast<Parent&>(self).operator=(data2);
+                self.view = data2;
             } else if constexpr (Ar::saving()) {
-                auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
+                auto data = std::span{reinterpret_cast<char const*>(self.view.data()), self.size()*sizeof(T)};
                 ar.saveMMap(data, alignof(T));
             } else {
-                auto data = std::span{reinterpret_cast<char const*>(self.data()), self.size()*sizeof(T)};
+                auto data = std::span{reinterpret_cast<char const*>(self.view.data()), self.size()*sizeof(T)};
                 ar.storeSizeMMap(data, alignof(T));
             }
         } else {
@@ -86,10 +84,13 @@ struct vector : std::span<T const> {
             self.rebuild();
         }
     }
-    using Parent::size;
+
+    auto size() const {
+        return view.size();
+    }
 
     auto operator[](size_t idx) const -> auto const& {
-        return Parent::operator[](idx);
+        return view[idx];
     }
     auto operator[](size_t idx) -> auto& {
         makeOwning();
@@ -97,15 +98,14 @@ struct vector : std::span<T const> {
     }
 
     void rebuild() {
-        auto data = std::span<T const>{owningBuffer.data(), owningBuffer.size()};
-        Parent::operator=(data);
+        view = {owningBuffer.data(), owningBuffer.size()};
     }
     void makeOwning() {
         if (owningBuffer.size() > 0) return;
         if (size() == 0) return;
         owningBuffer.reserve(size());
         for (size_t i{0}; i < size(); ++i) {
-            owningBuffer.push_back((*this)[i]);
+            owningBuffer.push_back(view[i]);
         }
         rebuild();
     }
@@ -143,6 +143,10 @@ struct vector : std::span<T const> {
     auto back() -> auto& {
         makeOwning();
         return owningBuffer.back();
+    }
+
+    auto back() const -> auto const& {
+        return view.back();
     }
 };
 
