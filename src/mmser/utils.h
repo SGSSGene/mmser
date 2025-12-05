@@ -119,7 +119,7 @@ struct ArchiveStream : ArchiveBase<Mode::Save> {
     std::ofstream ofs;
     size_t totalSize{};
 
-    std::vector<char> paddingBuffer; // reusable buffer to add padding data
+    inline static const std::array<char, 4096> paddingBuffer{}; // reusable buffer to add padding data
 
     ArchiveStream(std::filesystem::path _path)
         : ofs{_path, std::ios::out | std::ios::binary | std::ios::trunc}
@@ -127,8 +127,8 @@ struct ArchiveStream : ArchiveBase<Mode::Save> {
 
     void save(std::span<char const> _out, size_t alignment = 1) {
         auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
-        paddingBuffer.resize(paddingBytes, 0);
-        ofs.write(paddingBuffer.data(), paddingBuffer.size());
+        assert(paddingBytes < paddingBuffer.size());
+        ofs.write(paddingBuffer.data(), paddingBytes);
         ofs.write(_out.data(), _out.size());
 
         totalSize += _out.size() + paddingBytes;
