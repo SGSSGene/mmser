@@ -468,6 +468,16 @@ TEST_CASE("Tests mmser - vector", "[mmser][vector][int16_t][file]") {
             CHECK(output[i] == input[i]);
         }
     }
+    {
+        auto filename = std::filesystem::temp_directory_path() / std::filesystem::path{"unit_test_mmser_save_stream"};
+        mmser::saveFileStream(filename, input);
+        auto [output, storageManager] = mmser::loadFile<mmser::vector<int16_t>>(filename);
+
+        REQUIRE(output.size() == input.size());
+        for (size_t i{0}; i < output.size(); ++i) {
+            CHECK(output[i] == input[i]);
+        }
+    }
 
 #ifdef MMSER_MMAP
     {
