@@ -87,7 +87,7 @@ auto loadFileMMap(std::filesystem::path const& path) -> std::tuple<T, Storage> {
         throw std::runtime_error{"mmap failed"};
     }
     auto buffer = std::span<char const>{ptr, file_size};
-    load(buffer, std::get<0>(ret));
+    loadMMap(buffer, std::get<0>(ret));
     return ret;
 }
 #endif
@@ -113,6 +113,40 @@ void saveFileCopy(std::filesystem::path const& path, T const& t) {
         auto file = std::ofstream{path, std::ios::out | std::ios::binary | std::ios::trunc};
         file.write(buffer.data(), buffer.size());
     }
+}
+
+struct ArchiveStream : ArchiveBase<Mode::Save> {
+    std::ofstream ofs;
+    size_t totalSize{};
+
+    std::vector<char> paddingBuffer; // reusable buffer to add padding data
+
+    ArchiveStream(std::filesystem::path _path)
+        : ofs{_path, std::ios::out | std::ios::binary | std::ios::trunc}
+    {}
+
+    void save(std::span<char const> _out, size_t alignment = 1) {
+        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
+        paddingBuffer.resize(paddingBytes, 0);
+        ofs.write(paddingBuffer.data(), paddingBuffer.size());
+        ofs.write(_out.data(), _out.size());
+
+        totalSize += _out.size() + paddingBytes;
+    }
+    void saveMMap(std::span<char const> _out, size_t alignment = 1) {
+        auto size = _out.size();
+        *this & size;
+        save(_out, alignment);
+    }
+};
+
+template <>
+struct is_mmser_t<ArchiveStream> : std::true_type {};
+
+template <typename T>
+void saveFileStream(std::filesystem::path const& path, T const& t) {
+    auto archive = ArchiveStream{path};
+    handle(archive, t);
 }
 
 #ifdef MMSER_MMAP

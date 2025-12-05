@@ -18,12 +18,7 @@ template <typename T>
 concept is_mmser = is_mmser_t<T>::value;
 
 template <Mode _mode>
-struct Archive {
-    static constexpr Mode mode = _mode;
-};
-
-template <Mode _mode>
-struct is_mmser_t<Archive<_mode>> : std::true_type {};
+struct Archive;
 
 auto requiredPaddingBytes(size_t totalSize, size_t alignment) -> size_t;
 template <typename Ar, typename T>
@@ -45,6 +40,9 @@ struct ArchiveBase {
         (handle(std::forward<Self>(self), std::forward<Args>(args)), ...);
     }
 };
+
+template <Mode _mode>
+struct is_mmser_t<Archive<_mode>> : std::true_type {};
 
 template <>
 struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
