@@ -115,13 +115,13 @@ void saveFileCopy(std::filesystem::path const& path, T const& t) {
     }
 }
 
-struct ArchiveStream : ArchiveBase<Mode::Save> {
+struct ArchiveSaveStream : ArchiveBase<Mode::Save> {
     std::ofstream ofs;
     size_t totalSize{};
 
     inline static const std::array<char, 4096> paddingBuffer{}; // reusable buffer to add padding data
 
-    ArchiveStream(std::filesystem::path _path)
+    ArchiveSaveStream(std::filesystem::path _path)
         : ofs{_path, std::ios::out | std::ios::binary | std::ios::trunc}
     {}
 
@@ -141,11 +141,11 @@ struct ArchiveStream : ArchiveBase<Mode::Save> {
 };
 
 template <>
-struct is_mmser_t<ArchiveStream> : std::true_type {};
+struct is_mmser_t<ArchiveSaveStream> : std::true_type {};
 
 template <typename T>
 void saveFileStream(std::filesystem::path const& path, T const& t) {
-    auto archive = ArchiveStream{path};
+    auto archive = ArchiveSaveStream{path};
     handle(archive, t);
 }
 
