@@ -6,8 +6,12 @@
 #include "Handler.h"
 
 #include <any>
+#include <array>
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #if (defined(unix) || defined(__unix__) || defined(__unix))
     #include <fcntl.h>
@@ -69,6 +73,53 @@ auto loadFileCopy(std::filesystem::path const& path) -> std::tuple<T, Storage> {
     return ret;
 }
 
+struct ArchiveLoadStream : ArchiveBase<Mode::Load> {
+    std::ifstream ifs;
+    size_t totalSize{};
+
+    std::vector<char> buffer;
+
+    ArchiveLoadStream(std::filesystem::path _path)
+        : ifs{_path, std::ios::in | std::ios::binary}
+    {}
+
+    void load(std::span<char> _in, size_t alignment = 1) {
+        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
+
+        ifs.ignore(paddingBytes);
+
+        ifs.read(_in.data(), _in.size());
+        totalSize += _in.size() + paddingBytes;
+    }
+
+    auto loadMMap(size_t alignment = 1) -> std::span<char const> {
+        size_t size{};
+        *this & size;
+
+        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
+        ifs.ignore(paddingBytes);
+        buffer.resize(size+alignment-1);
+        size_t offset = alignment - (reinterpret_cast<size_t>(buffer.data()) % alignment);
+        if (offset == alignment) offset = 0;
+        ifs.read(buffer.data() + offset, size);
+        totalSize += paddingBytes + size;
+        return {buffer.data() + offset, size};
+    }
+};
+
+template <>
+struct is_mmser_t<ArchiveLoadStream> : std::true_type {};
+
+template <typename T>
+auto loadFileStream(std::filesystem::path const& path) -> std::tuple<T, Storage> {
+    auto ret = std::tuple<T, Storage>{};
+
+    auto archive = ArchiveLoadStream{path};
+    handle(archive, std::get<0>(ret));
+    return ret;
+}
+
+
 #ifdef MMSER_MMAP
 template <typename T>
 auto loadFileMMap(std::filesystem::path const& path) -> std::tuple<T, Storage> {
@@ -84,7 +135,7 @@ auto loadFileMMap(std::filesystem::path const& path) -> std::tuple<T, Storage> {
         throw std::runtime_error{"mmap failed"};
     }
     auto buffer = std::span<char const>{ptr, file_size};
-    load(buffer, std::get<0>(ret));
+    loadMMap(buffer, std::get<0>(ret));
     return ret;
 }
 #endif
@@ -95,7 +146,7 @@ auto loadFile(std::filesystem::path const& path) -> std::tuple<T, Storage> {
     #ifdef MMSER_MMAP
         return loadFileMMap<T>(path);
     #else
-        return loadFileCopy<T>(path);
+        return loadFileStream<T>(path);
     #endif
 }
 
@@ -110,6 +161,40 @@ void saveFileCopy(std::filesystem::path const& path, T const& t) {
         auto file = std::ofstream{path, std::ios::out | std::ios::binary | std::ios::trunc};
         file.write(buffer.data(), buffer.size());
     }
+}
+
+struct ArchiveSaveStream : ArchiveBase<Mode::Save> {
+    std::ofstream ofs;
+    size_t totalSize{};
+
+    inline static const std::array<char, 4096> paddingBuffer{}; // reusable buffer to add padding data
+
+    ArchiveSaveStream(std::filesystem::path _path)
+        : ofs{_path, std::ios::out | std::ios::binary | std::ios::trunc}
+    {}
+
+    void save(std::span<char const> _out, size_t alignment = 1) {
+        auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
+        assert(paddingBytes < paddingBuffer.size());
+        ofs.write(paddingBuffer.data(), paddingBytes);
+        ofs.write(_out.data(), _out.size());
+
+        totalSize += _out.size() + paddingBytes;
+    }
+    void saveMMap(std::span<char const> _out, size_t alignment = 1) {
+        auto size = _out.size();
+        *this & size;
+        save(_out, alignment);
+    }
+};
+
+template <>
+struct is_mmser_t<ArchiveSaveStream> : std::true_type {};
+
+template <typename T>
+void saveFileStream(std::filesystem::path const& path, T const& t) {
+    auto archive = ArchiveSaveStream{path};
+    handle(archive, t);
 }
 
 #ifdef MMSER_MMAP
@@ -153,7 +238,7 @@ void saveFile(std::filesystem::path const& path, T const& t) {
     #ifdef MMSER_MMAP
         saveFileMMap(path, t);
     #else
-        saveFileCopy(path, t);
+        saveFileStream(path, t);
     #endif
 }
 }
