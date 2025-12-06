@@ -98,7 +98,7 @@ struct ArchiveLoadStream : ArchiveBase<Mode::Load> {
         auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
         ifs.ignore(paddingBytes);
         buffer.resize(size+alignment-1);
-        size_t offset = alignment (reinterpret_cast<size_t>(buffer.data()) % alignment);
+        size_t offset = alignment - (reinterpret_cast<size_t>(buffer.data()) % alignment);
         if (offset == alignment) offset = 0;
         ifs.read(buffer.data() + offset, size);
         totalSize += paddingBytes + size;
@@ -145,7 +145,7 @@ auto loadFile(std::filesystem::path const& path) -> std::tuple<T, Storage> {
     #ifdef MMSER_MMAP
         return loadFileMMap<T>(path);
     #else
-        return loadFileCopy<T>(path);
+        return loadFileStream<T>(path);
     #endif
 }
 
@@ -237,7 +237,7 @@ void saveFile(std::filesystem::path const& path, T const& t) {
     #ifdef MMSER_MMAP
         saveFileMMap(path, t);
     #else
-        saveFileCopy(path, t);
+        saveFileStream(path, t);
     #endif
 }
 }
