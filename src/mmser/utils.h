@@ -6,6 +6,7 @@
 #include "Handler.h"
 
 #include <any>
+#include <array>
 #include <cerrno>
 #include <cstring>
 #include <fstream>
