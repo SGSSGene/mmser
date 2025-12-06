@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2025 Simon Gene Gottlieb
+// SPDX-License-Identifier: CC0-1.0
 #include <mmser/mmser.h>
 
 int main(int argc, char** args) {
