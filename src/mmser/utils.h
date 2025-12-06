@@ -98,7 +98,8 @@ struct ArchiveLoadStream : ArchiveBase<Mode::Load> {
         auto paddingBytes = requiredPaddingBytes(totalSize, alignment);
         ifs.ignore(paddingBytes);
         buffer.resize(size+alignment-1);
-        size_t offset = reinterpret_cast<size_t>(buffer.data()) % alignment;
+        size_t offset = alignment (reinterpret_cast<size_t>(buffer.data()) % alignment);
+        if (offset == alignment) offset = 0;
         ifs.read(buffer.data() + offset, size);
         totalSize += paddingBytes + size;
         return {buffer.data() + offset, size};
