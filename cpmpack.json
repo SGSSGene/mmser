@@ -22,7 +22,7 @@
         "if": "MMSER_BUILD_TEST",
         "name": "test_mmser",
         "type": "executable",
-        "language": "cxx_std_20",
+        "language": "cxx_std_23",
         "dependencies": [
             "mmser::mmser",
             "Catch2::Catch2WithMain",
@@ -32,7 +32,7 @@
         "if": "MMSER_BUILD_DEMO",
         "name": "demo_mmser",
         "type": "executable",
-        "language": "cxx_std_20",
+        "language": "cxx_std_23",
         "dependencies": [
             "mmser::mmser",
         ]
