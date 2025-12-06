@@ -11,10 +11,14 @@
 
 namespace mmser {
 
+template <typename T>
+struct is_mmser_t : std::false_type {};
+
+template <typename T>
+concept is_mmser = is_mmser_t<T>::value;
+
 template <Mode _mode>
-struct Archive {
-    static constexpr Mode mode = _mode;
-};
+struct Archive;
 
 auto requiredPaddingBytes(size_t totalSize, size_t alignment) -> size_t;
 template <typename Ar, typename T>
@@ -37,6 +41,9 @@ struct ArchiveBase {
     }
 };
 
+template <Mode _mode>
+struct is_mmser_t<Archive<_mode>> : std::true_type {};
+
 template <>
 struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
     std::span<char const> buffer;
@@ -54,7 +61,7 @@ struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
             _in[i] = buffer[i];
         }
         buffer = buffer.subspan(_in.size());
-        totalSize = _in.size() + paddingBytes;
+        totalSize += _in.size() + paddingBytes;
     }
 
     auto loadMMap(size_t alignment = 1) -> std::span<char const> {
@@ -68,7 +75,7 @@ struct Archive<Mode::Load> : ArchiveBase<Mode::Load> {
         assert(size <= buffer.size());
         auto r = buffer.subspan(0, size);
         buffer = buffer.subspan(size);
-        totalSize = size + paddingBytes;
+        totalSize += size + paddingBytes;
         return r;
     }
 };
@@ -90,7 +97,7 @@ struct Archive<Mode::LoadMMap> : ArchiveBase<Mode::LoadMMap> {
             _in[i] = buffer[i];
         }
         buffer = buffer.subspan(_in.size());
-        totalSize = _in.size() + paddingBytes;
+        totalSize += _in.size() + paddingBytes;
     }
 
     auto loadMMap(size_t alignment = 1) -> std::span<char const> {
@@ -104,7 +111,7 @@ struct Archive<Mode::LoadMMap> : ArchiveBase<Mode::LoadMMap> {
         assert(size <= buffer.size());
         auto r = buffer.subspan(0, size);
         buffer = buffer.subspan(size);
-        totalSize = size + paddingBytes;
+        totalSize += size + paddingBytes;
         return r;
     }
 
@@ -128,7 +135,7 @@ struct Archive<Mode::Save> : ArchiveBase<Mode::Save> {
             buffer[i] = _out[i];
         }
         buffer = buffer.subspan(_out.size());
-        totalSize = _out.size() + paddingBytes;
+        totalSize += _out.size() + paddingBytes;
     }
     void saveMMap(std::span<char const> _out, size_t alignment = 1) {
         auto size = _out.size();
