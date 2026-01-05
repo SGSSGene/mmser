@@ -3,6 +3,7 @@
 #pragma once
 
 #include "utils.h"
+#include "platform.h"
 
 #include <initializer_list>
 
@@ -130,7 +131,14 @@ struct vector {
 
     void resize(size_t s, T const& v) {
         makeOwning();
+#ifdef MMSER_IGNORE_GCC_FLAG_BUG1
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
         owningBuffer.resize(s, v);
+#ifdef MMSER_IGNORE_GCC_FLAG_BUG1
+#pragma GCC diagnostic pop
+#endif
         rebuild();
     }
 
