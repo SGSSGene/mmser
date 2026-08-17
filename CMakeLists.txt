@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 3.31)
 
 project (mmser LANGUAGES CXX)
 include(cmake/CPM.cmake)
-CPMAddPackage("gh:SGSSGene/cpmpack@1.0.2")
+CPMAddPackage("gh:SGSSGene/cpmpack@1.1.4")
 loadCPMPack("${CMAKE_CURRENT_SOURCE_DIR}/cpmpack.json")
 
 if (MMSER_BUILD_TEST)
