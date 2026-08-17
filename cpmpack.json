@@ -10,13 +10,13 @@
         "name": "MMSER_BUILD_DEMO",
         "description": "build demonstration executables using this library",
         "default": "${PROJECT_IS_TOP_LEVEL}"
-    },
+    }
   ],
   "translationsets": [
     {
       "name": "mmser::mmser",
       "type": "library",
-      "language": "cxx_std_23",
+      "language": "cxx_std_23"
     },
     {
         "if": "MMSER_BUILD_TEST",
@@ -25,7 +25,7 @@
         "language": "cxx_std_23",
         "dependencies": [
             "mmser::mmser",
-            "Catch2::Catch2WithMain",
+            "Catch2::Catch2WithMain"
         ]
     },
     {
@@ -34,9 +34,9 @@
         "type": "executable",
         "language": "cxx_std_23",
         "dependencies": [
-            "mmser::mmser",
+            "mmser::mmser"
         ]
-    },
+    }
   ],
   "packages": [
     {
@@ -44,13 +44,13 @@
       "name": "fmt",
       "version": "12.1.0",
       "github_repository": "fmtlib/fmt",
-      "git_tag": "{VERSION}",
+      "git_tag": "{VERSION}"
     },
     {
       "if": "MMSER_BUILD_TEST",
       "name":"Catch2",
       "version": "3.11.0",
       "github_repository": "catchorg/Catch2"
-    },
+    }
   ]
 }
